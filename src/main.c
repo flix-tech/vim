@@ -619,7 +619,7 @@ vim_main2(void)
 # ifdef FEAT_SUN_WORKSHOP
 	if (!usingSunWorkShop)
 # endif
-	    gui_wait_for_chars(50L);
+	    gui_wait_for_chars(50L, typebuf.tb_change_cnt);
 	TIME_MSG("GUI delay");
     }
 #endif
@@ -1432,9 +1432,14 @@ getout(int exitval)
 		buf = wp->w_buffer;
 		if (CHANGEDTICK(buf) != -1)
 		{
+		    bufref_T bufref;
+
+		    set_bufref(&bufref, buf);
 		    apply_autocmds(EVENT_BUFWINLEAVE, buf->b_fname,
 						    buf->b_fname, FALSE, buf);
-		    CHANGEDTICK(buf) = -1;  /* note that we did it already */
+		    if (bufref_valid(&bufref))
+			CHANGEDTICK(buf) = -1;  /* note we did it already */
+
 		    /* start all over, autocommands may mess up the lists */
 		    next_tp = first_tabpage;
 		    break;
@@ -3673,12 +3678,18 @@ prepare_server(mparm_T *parmp)
     /*
      * Register for remote command execution with :serversend and --remote
      * unless there was a -X or a --servername '' on the command line.
-     * Only register nongui-vim's with an explicit --servername argument.
+     * Only register nongui-vim's with an explicit --servername argument,
+     * or when compiling with autoservername.
      * When running as root --servername is also required.
      */
     if (X_DISPLAY != NULL && parmp->servername != NULL && (
-#  ifdef FEAT_GUI
-		(gui.in_use
+#  if defined(FEAT_AUTOSERVERNAME) || defined(FEAT_GUI)
+		(
+#   if defined(FEAT_AUTOSERVERNAME)
+		    1
+#   else
+		    gui.in_use
+#   endif
 #   ifdef UNIX
 		 && getuid() != ROOT_UID
 #   endif

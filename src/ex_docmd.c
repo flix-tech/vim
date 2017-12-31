@@ -4521,13 +4521,14 @@ get_address(
 		    if (lnum != MAXLNUM)
 			curwin->w_cursor.lnum = lnum;
 		    /*
-		     * Start a forward search at the end of the line.
+		     * Start a forward search at the end of the line (unless
+		     * before the first line).
 		     * Start a backward search at the start of the line.
 		     * This makes sure we never match in the current
 		     * line, and can match anywhere in the
 		     * next/previous line.
 		     */
-		    if (c == '/')
+		    if (c == '/' && curwin->w_cursor.lnum > 0)
 			curwin->w_cursor.col = MAXCOL;
 		    else
 			curwin->w_cursor.col = 0;
@@ -11695,9 +11696,11 @@ put_view(
     }
 
     /*
-     * Local directory.
+     * Local directory, if the current flag is not view options or the "curdir"
+     * option is included.
      */
-    if (wp->w_localdir != NULL)
+    if (wp->w_localdir != NULL
+			    && (flagp != &vop_flags || (*flagp & SSOP_CURDIR)))
     {
 	if (fputs("lcd ", fd) < 0
 		|| ses_put_fname(fd, wp->w_localdir, flagp) == FAIL
